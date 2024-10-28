@@ -1,9 +1,11 @@
 #!/bin/sh
 
-# shellcheck shell=dash
-# shellcheck disable=SC2039  # local is non-POSIX
+# This script does platform detection and installs the latest appropriate
+# release of the spex language. The platform detection code is taken from
+# rustup.
 
-# XXX: description
+# shellcheck shell=sh
+# shellcheck disable=SC3043  # local is non-POSIX
 
 # It runs on Unix shells like {a,ba,da,k,z}sh. It uses the common `local`
 # extension. Note: Most shells limit `local` to 1 var per line, contra bash.
@@ -20,15 +22,9 @@ has_local 2>/dev/null || alias local=typeset
 
 set -u # Treat unset variables as an error when substituting.
 
+export SPEXUP_VERSION=0.0.0
 OWNER=spex-lang
-REPO=spex
-
-usage () {
-    err "Unknown command."
-    echo ""
-    echo "Usage: spexup (list | install VERSION)"
-    exit 1
-}
+REPOS="spex" # XXX: spexup?
 
 main () {
 
@@ -39,82 +35,93 @@ main () {
   need_cmd uname
   need_cmd chmod
   need_cmd mkdir
+  need_cmd ln
 
   get_architecture || return 1
   local _arch="$RETVAL"
-  assert_nz "$_arch" "arch"
+  assert_nz "$_arch" "Couldn't detect platform (OS and CPU), please report a \
+bug with the \n       output of 'uname -a'."
+
   say "Detected platform: $_arch"
 
-  local _bin
+  local _platform
   case "$_arch" in
-    x86_64*linux*) _bin=x86_64-linux ;;
+    x86_64*linux*) _platform=x86_64-linux ;;
     *) 
       echo ""
       err "Your platform is currently not supported."
       echo ""
       echo "Try building from source instead, as explained in the README:"
       echo ""
-      echo "    https://github.com/$OWNER/$REPO"
+      echo "    https://github.com/$OWNER/spex"
       echo ""
       echo "Also please open a ticket about adding support for your platform!"
       exit 1
       ;;
   esac
 
-  local _bindir=${XDG_BIN_HOME:=$HOME/.local/bin}
-  ensure mkdir -p $_bindir
+  local _bindir="${XDG_BIN_HOME:=$HOME/.local/bin}"
+  ensure mkdir -p "$_bindir"
 
-  local _url=$(dl_url "spex" "0.0.0")
-  local _file="$_bindir/spex" # XXX: should be _bin
+  for repo in $REPOS; do
+    local _latest_version
+    _latest_version="$(latest_release "$repo")"
+    assert_nz "$_latest_version" "No release of $repo is available yet."
+    local _download_urls
+    _download_urls=$(binary_assets "$repo" "$_latest_version")
+    for url in $_download_urls; do
+      local _file
+      _file="$_bindir/$(basename "$url")"
 
-  say "Downloading binary from:"
-  echo ""
-  echo "    $_url"
-  echo ""
-  echo "Into the directory:"
-  echo ""
-  echo "    $_bindir"
-  echo ""
-  echo "You might want to double check that the above directory is in your PATH."
+      say "Downloading binary from:"
+      echo ""
+      echo "    $url"
+      echo ""
+      echo "  Installing it here:"
+      echo ""
+      echo "    $_file"
+      echo ""
 
-  ensure downloader "$_url" "$_file" "$_arch"
-  ensure chmod u+x "$_file"
+      ensure downloader "$url" "$_file" "$_platform"
+      ensure chmod u+x "$_file"
 
-  $_file --version
+      _latest_version=$(echo "$_latest_version" | sed 's/^v//')
 
-  ##subcommand="$1";
-  ##
-  ##if [ "$subcommand" = "list" ]; then
-  ##  list_cmd
-  ##elif [ "$subcommand" = "install" ]; then
-  ##  shift;
-  ##  install_cmd "$@"
-  ##else 
-  ##  usage
-  ##fi
-}
-
-list_cmd () {
-  versions="$(curl -L \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                --silent \
-                https://api.github.com/repos/$OWNER/$REPO/releases \
-            | jq -r '.[].tag_name')"
-  echo ""
-  say "Listing available versions:"
-  echo ""
-  for version in $versions; do
-    echo "    spex  $version"
+      local _symlink
+      _symlink="$(dirname "$_file")/$(basename "$_file" "-${_latest_version}-${_platform}")"
+      say "Creating symlink:"
+      echo ""
+      echo "  $_symlink ->"
+      echo "  $_file"
+      echo ""
+      ensure ln -sf "$_file" "$_symlink"
+    done
   done
-  echo ""
-  echo "To install a specific version call 'spexup install <version>'"
+
+  say "Done installing version: $(spex --version)"
+
 }
 
-dl_url () {
-  name=$1
-  tag=$2
-  jq -r ".[] | select(.tag_name == \"$tag\") | .assets[] | select(.name ==\"$name\") | .browser_download_url" < releases.json
+latest_release () {
+  local _repo="$1"
+  curl -L \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    --silent \
+    "https://api.github.com/repos/$OWNER/$_repo/releases" \
+  | jq -r '.[].tag_name'
+
+}
+
+binary_assets () {
+  local _repo="$1"
+  local _version="$2"
+  curl -L \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    --silent \
+    "https://api.github.com/repos/$OWNER/$_repo/releases" \
+  | jq -r ".[] | select(.tag_name == \"$_version\") | .assets[] | select(.name != \"provenance.json\") | .browser_download_url"
 }
 
 # ------------------------------------------------------------------------
@@ -156,51 +163,51 @@ check_terminal_ansi_support () {
   fi
 }
 
-err() {
-  printf "${red}${bold}Error${reset}: $1\n"
-}
-
 say() {
-  printf "${cyan}i${reset} $1\n"
+  printf "%si%s %s\n" "${cyan}" "${reset}" "$1"
 }
 
 warn() {
-  printf "${yellow}w${reset} $1\n"
+  printf "%sWarning%s: %s\n" "${yellow}" "${reset}" "$1"
+}
+
+err() {
+  printf "%s%sError%s: %s\n" "${red}" "${bold}" "${reset}" "$1"
 }
 
 need_cmd() {
-    if ! check_cmd "$1"; then
-        err "need '$1' (command not found)"
-        exit 1
-    fi
+  if ! check_cmd "$1"; then
+    err "need '$1' (command not found)"
+    exit 1
+  fi
 }
 
 check_cmd() {
-    command -v "$1" > /dev/null 2>&1
+  command -v "$1" > /dev/null 2>&1
 }
 
 assert_nz() {
-    if [ -z "$1" ]; then 
-        err "assert_nz $2"
-        exit 1
-    fi
+  if [ -z "$1" ]; then 
+    err "$2"
+    exit 1
+  fi
 }
 
 # Run a command that should never fail. If the command fails execution
 # will immediately terminate with an error showing the failing
 # command.
 ensure() {
-    if ! "$@"; then
-        err "command failed: $*"
-        exit 1
-    fi
+  if ! "$@"; then
+    err "command failed: $*"
+    exit 1
+  fi
 }
 
 # This is just for indicating that commands' results are being
 # intentionally ignored. Usually, because it's being executed
 # as part of error handling.
 ignore() {
-    "$@"
+  "$@"
 }
 
 # ----------------------------------------------------------------------
@@ -474,7 +481,7 @@ get_bitness() {
     #   0x02 for 64-bit.
     # The printf builtin on some shells like dash only supports octal
     # escape sequences, so we use those.
-    local _current_exe=$1
+    local _current_exe="$1"
     local _current_exe_head
     _current_exe_head=$(head -c 5 "$_current_exe")
     if [ "$_current_exe_head" = "$(printf '\177ELF\001')" ]; then
@@ -488,7 +495,7 @@ get_bitness() {
 }
 
 is_host_amd64_elf() {
-    local _current_exe=$1
+    local _current_exe="$1"
 
     need_cmd head
     need_cmd tail
@@ -501,10 +508,10 @@ is_host_amd64_elf() {
 }
 
 get_endianness() {
-    local _current_exe=$1
-    local cputype=$2
-    local suffix_eb=$3
-    local suffix_el=$4
+    local _current_exe="$1"
+    local cputype="$2"
+    local suffix_eb="$3"
+    local suffix_el="$4"
 
     # detect endianness without od/hexdump, like get_bitness() does.
     need_cmd head
@@ -628,7 +635,7 @@ downloader() {
         if [ -n "$_err" ]; then
             warn "$_err"
             if echo "$_err" | grep -q 404$; then
-                err "installer for platform '$3' not found, this may be unsupported"
+                err "The binary for the platform '$3' wasn't found, please open an issue."
                 exit 1
             fi
         fi
@@ -659,7 +666,7 @@ downloader() {
         if [ -n "$_err" ]; then
             warn "$_err"
             if echo "$_err" | grep -q ' 404 Not Found$'; then
-                err "installer for platform '$3' not found, this may be unsupported"
+                err "The binary for the platform '$3' wasn't found, please open an issue."
                 exit 1
             fi
         fi
