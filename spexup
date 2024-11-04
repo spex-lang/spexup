@@ -55,8 +55,8 @@ bug with the \n       output of 'uname -a'."
     aarch64*darwin*) _platform=arm64-macos
                      _bindir="/Users/$USER/Applications" ;;
     x86_64*windows*) _platform=x86_64-windows 
-                     _bindir="/c/Program Files" ;;
-                     _suffix=".exe"
+                     _bindir="/c/Program Files"
+                     _suffix=".exe" ;;
     *) 
       echo ""
       err "Your platform is currently not supported."
