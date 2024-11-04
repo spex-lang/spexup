@@ -79,7 +79,7 @@ bug with the \n       output of 'uname -a'."
     for url in $_download_urls; do
 
       # Remove trailing whitespace.
-      url=$(echo "$url" | awk '{$1=$1;print}')
+      url=$(echo "$url" | awk '{$1=$1;print}' | sed 's/https:\/\///')
 
       local _file
       _file="$_bindir/$(basename "$url")"
