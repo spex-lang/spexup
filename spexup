@@ -79,7 +79,7 @@ bug with the \n       output of 'uname -a'."
     for url in $_download_urls; do
 
       # Remove trailing whitespace.
-      url=$(echo "$url" | awk '{$1=$1;print}' | sed 's/https:\/\///')
+      url=$(echo "$url" | awk '{$1=$1;print}')
 
       local _file
       _file="$_bindir/$(basename "$url")"
@@ -646,8 +646,8 @@ downloader() {
                 _err=$(curl $_retry --silent --show-error --fail --location "$1" --output "$2" 2>&1)
                 _status=$?
             else
-                echo curl --proto '=https' --tlsv1.2 --silent --show-error --fail --location \""$1"\" --output "\"$2\""
-                _err=$(curl --proto '=https' --tlsv1.2 --silent --show-error --fail --location \""$1"\" --output \""$2"\" 2>&1)
+                echo curl --proto '=https' --tlsv1.2 --silent --show-error --fail --location --url \""$1"\" --output "\"$2\""
+                _err=$(curl --proto '=https' --tlsv1.2 --silent --show-error --fail --location --url \""$1"\" --output \""$2"\" 2>&1)
                 #_err=$(curl "$_retry" --proto '=https' --tlsv1.2 --silent --show-error --fail --location \""$1"\" --output \""$2"\" 2>&1)
                 _status=$?
             fi
