@@ -94,7 +94,7 @@ bug with the \n       output of 'uname -a'."
       echo ""
 
       #ensure downloader "$url" "$_file" "$_arch"
-      curl -v --silent --show-error --fail --location --output "/c/Program Files/spex-0.0.0-x86_64-windows.exe" "https://github.com/spex-lang/spex/releases/download/v0.0.0/spex-0.0.0-x86_64-windows.exe"
+      curl -v --silent --show-error --fail --location --output "$_file" "$url"
       ensure chmod u+x "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
