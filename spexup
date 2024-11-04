@@ -638,8 +638,8 @@ downloader() {
                 _status=$?
             else
                 # shellcheck disable=SC2086
-                echo curl $_retry --proto '=https' --tlsv1.2 --silent --show-error --fail --location "$1" --output "$2"
-                _err=$(curl $_retry --proto '=https' --tlsv1.2 --silent --show-error --fail --location "$1" --output "$2" 2>&1)
+                echo curl $_retry --proto '=https' --tlsv1.2 --silent --show-error --fail --location "\"$1\"" --output "$2"
+                _err=$(curl $_retry --proto '=https' --tlsv1.2 --silent --show-error --fail --location "\"$1\"" --output "$2" 2>&1)
                 _status=$?
             fi
         fi
