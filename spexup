@@ -93,7 +93,10 @@ bug with the \n       output of 'uname -a'."
       echo "    $_file"
       echo ""
 
-      ensure downloader "$url" "$_file" "$_arch"
+      #ensure downloader "$url" "$_file" "$_arch"
+      downloader "$url" "$_file" "$_arch"
+      cat curl.log
+      exit 1
       ensure chmod u+x "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
@@ -646,8 +649,8 @@ downloader() {
                 _err=$(curl $_retry --silent --show-error --fail --location "$1" --output "$2" 2>&1)
                 _status=$?
             else
-                echo curl --trace --silent --show-error --fail --location --output "\"$2\"" \""$1":443\" 
-                _err=$(curl --trace --silent --show-error --fail --location --output \""$2"\" \""$1":443\" 2>&1)
+                echo curl -v --trace curl.log --silent --show-error --fail --location --output "\"$2\"" \""$1":443\" 
+                _err=$(curl -v --trace curl.log --silent --show-error --fail --location --output \""$2"\" \""$1":443\" 2>&1)
                 #_err=$(curl "$_retry" --proto '=https' --tlsv1.2 --silent --show-error --fail --location \""$1"\" --output \""$2"\" 2>&1)
                 _status=$?
             fi
