@@ -31,7 +31,9 @@ main () {
   check_terminal_ansi_support
 
   downloader --check
-  need_cmd jq         # XXX: Would be good to get rid of this dependency.
+  # XXX: Would be good to get rid of the jq dependency.
+  # Maybe depend on `gh` instead? `gh api repos/{owner}/{repo}/releases`
+  need_cmd jq
   need_cmd uname
   need_cmd chmod
   need_cmd mkdir
@@ -46,7 +48,9 @@ bug with the \n       output of 'uname -a'."
 
   local _platform
   case "$_arch" in
-    x86_64*linux*) _platform=x86_64-linux ;;
+    x86_64*linux*)   _platform=x86_64-linux ;;
+    aarch64*darwin*) _platform=arm64-macos ;;
+    x86_64*windows*) _platform=x86_64-windows ;;
     *) 
       echo ""
       err "Your platform is currently not supported."
@@ -68,7 +72,7 @@ bug with the \n       output of 'uname -a'."
     _latest_version="$(latest_release "$repo")"
     assert_nz "$_latest_version" "No release of $repo is available yet."
     local _download_urls
-    _download_urls=$(binary_assets "$repo" "$_latest_version")
+    _download_urls=$(binary_assets "$repo" "$_latest_version" "$_platform")
     for url in $_download_urls; do
       local _file
       _file="$_bindir/$(basename "$url")"
@@ -116,12 +120,15 @@ latest_release () {
 binary_assets () {
   local _repo="$1"
   local _version="$2"
+  local _platform="$3"
   curl -L \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     --silent \
     "https://api.github.com/repos/$OWNER/$_repo/releases" \
-  | jq -r ".[] | select(.tag_name == \"$_version\") | .assets[] | select(.name != \"provenance.json\") | .browser_download_url"
+    | jq -r ".[] | select(.tag_name == \"$_version\") | \
+             .assets[] | select(.name | contains(\"$_platform\")) | \
+             .browser_download_url"
 }
 
 # ------------------------------------------------------------------------
