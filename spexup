@@ -47,10 +47,14 @@ bug with the \n       output of 'uname -a'."
   say "Detected platform: $_arch"
 
   local _platform
+  local _bindir
   case "$_arch" in
-    x86_64*linux*)   _platform=x86_64-linux ;;
-    aarch64*darwin*) _platform=arm64-macos ;;
-    x86_64*windows*) _platform=x86_64-windows ;;
+    x86_64*linux*)   _platform=x86_64-linux
+                     _bindir="${XDG_BIN_HOME:=$HOME/.local/bin}" ;;
+    aarch64*darwin*) _platform=arm64-macos
+                     _bindir="/Users/$USER/Applications" ;;
+    x86_64*windows*) _platform=x86_64-windows 
+                     _bindir="/c/Program Files" ;;
     *) 
       echo ""
       err "Your platform is currently not supported."
@@ -64,7 +68,6 @@ bug with the \n       output of 'uname -a'."
       ;;
   esac
 
-  local _bindir="${XDG_BIN_HOME:=$HOME/.local/bin}"
   ensure mkdir -p "$_bindir"
 
   for repo in $REPOS; do
