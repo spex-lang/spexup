@@ -100,7 +100,7 @@ bug with the \n       output of 'uname -a'."
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
 
       local _symlink
-      _symlink="$(dirname "$_file")/$(basename "$_file" "-${_latest_version}-${_platform}")"
+      _symlink="$(dirname "$_file")/$(basename "$_file" "-${_latest_version}-${_platform}.exe").exe"
       say "Creating symlink:"
       echo ""
       echo "  $_symlink ->"
