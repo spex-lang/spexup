@@ -86,7 +86,7 @@ bug with the \n       output of 'uname -a'."
       echo "    $_file"
       echo ""
 
-      ensure downloader "$url" "$_file" "$_platform"
+      ensure downloader "$url" "$_file" "$_arch"
       ensure chmod u+x "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
