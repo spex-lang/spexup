@@ -620,7 +620,7 @@ downloader() {
     local _status
     local _retry
     if check_cmd curl; then
-        _dld=curl
+        _dld=wget
     elif check_cmd wget; then
         _dld=wget
     else
