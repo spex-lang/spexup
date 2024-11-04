@@ -48,6 +48,7 @@ bug with the \n       output of 'uname -a'."
 
   local _platform
   local _bindir
+  local _suffix=""
   case "$_arch" in
     x86_64*linux*)   _platform=x86_64-linux
                      _bindir="${XDG_BIN_HOME:=$HOME/.local/bin}" ;;
@@ -55,6 +56,7 @@ bug with the \n       output of 'uname -a'."
                      _bindir="/Users/$USER/Applications" ;;
     x86_64*windows*) _platform=x86_64-windows 
                      _bindir="/c/Program Files" ;;
+                     _suffix=".exe"
     *) 
       echo ""
       err "Your platform is currently not supported."
@@ -94,13 +96,13 @@ bug with the \n       output of 'uname -a'."
       echo ""
 
       #ensure downloader "$url" "$_file" "$_arch"
-      curl -v --silent --show-error --fail --location --output "$_file" "$url"
+      curl --silent --show-error --fail --location --output "$_file" "$url"
       ensure chmod u+x "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
 
       local _symlink
-      _symlink="$(dirname "$_file")/$(basename "$_file" "-${_latest_version}-${_platform}.exe").exe"
+      _symlink="$(dirname "$_file")/$(basename "$_file" "-${_latest_version}-${_platform}${_suffix}")${_suffix}"
       say "Creating symlink:"
       echo ""
       echo "  $_symlink ->"
