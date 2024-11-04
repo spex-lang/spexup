@@ -82,7 +82,7 @@ bug with the \n       output of 'uname -a'."
 
       say "Downloading binary from:"
       echo ""
-      echo "    $url"
+      echo "   '$url'"
       echo ""
       echo "  Installing it here:"
       echo ""
@@ -105,7 +105,12 @@ bug with the \n       output of 'uname -a'."
     done
   done
 
-  say "Done installing version: $(spex --version)"
+  if ! check_cmd spex; then
+    warn "Ensure that you add $_bindir to your PATH, i.e.:"
+    echo "export PATH=\"\$PATH:$_bindir\""
+  else
+    say "Done installing version: $(spex --version)"
+  fi
 
 }
 
