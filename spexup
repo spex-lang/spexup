@@ -21,6 +21,7 @@ has_local() {
 has_local 2>/dev/null || alias local=typeset
 
 set -u # Treat unset variables as an error when substituting.
+set -x
 
 export SPEXUP_VERSION=0.0.0
 OWNER=spex-lang
@@ -138,7 +139,6 @@ bug with the \n       output of 'uname -a'."
 
 latest_release () {
   local _repo="$1"
-  set -x
   gh release list --repo "${OWNER}/$_repo" --exclude-drafts --limit 1 --json tagName --jq '.[].tagName'
 
 ##  curl \
