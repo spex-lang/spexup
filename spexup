@@ -139,18 +139,32 @@ bug with the \n       output of 'uname -a'."
 
 latest_release () {
   local _repo="$1"
-  curl \
-    --header "Accept: application/vnd.github+json" \
-    --header "X-GitHub-Api-Version: 2022-11-28" \
-    --silent \
-    --show-error \
-    --fail \
-    --location \
-    --retry 3 \
-    --continue-at - \
-    "https://api.github.com/repos/$OWNER/$_repo/releases" \
-  | jq -r '.[].tag_name'
-
+  local _code
+  _code=$(curl \
+        --header "Accept: application/vnd.github+json" \
+        --header "X-GitHub-Api-Version: 2022-11-28" \
+        --silent \
+        --show-error \
+        --fail \
+        --location \
+        --retry 3 \
+        --continue-at - \
+        "https://api.github.com/repos/$OWNER/$_repo/releases" \
+    | jq -r '.[].tag_name')
+  if [ "$_code" = '403' ]; then
+    echo Retrying
+    curl \
+        --header "Accept: application/vnd.github+json" \
+        --header "X-GitHub-Api-Version: 2022-11-28" \
+        --silent \
+        --show-error \
+        --fail \
+        --location \
+        --retry 3 \
+        --continue-at - \
+        "https://api.github.com/repos/$OWNER/$_repo/releases" \
+        | jq -r '.[].tag_name'
+  fi
 }
 
 binary_assets () {
