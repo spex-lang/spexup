@@ -121,6 +121,8 @@ bug with the \n       output of 'uname -a'."
   else
     otool -L /usr/local/bin/spex-0.0.0-arm64-macos || true
     otool -hV -arch all /usr/local/bin/spex-0.0.0-arm64-macos || true
+    uname -s || true
+    uname -m || true
     say "Done installing version: $(spex --version)"
   fi
 
