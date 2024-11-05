@@ -124,6 +124,7 @@ bug with the \n       output of 'uname -a'."
     uname -s || true
     uname -m || true
     codesign -vv /usr/local/bin/spex-0.0.0-arm64-macos || true
+    codesign -s - -f -vvvvvv /usr/local/bin/spex-0.0.0-arm64-macos || true
     say "Done installing version: $(spex --version)"
     sleep 3
     log show --last 10s --debug || true
