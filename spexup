@@ -159,20 +159,24 @@ binary_assets () {
   local _repo="$1"
   local _version="$2"
   local _platform="$3"
-  curl \
-    --header "Accept: application/vnd.github+json" \
-    --header "X-GitHub-Api-Version: 2022-11-28" \
-    --header "User-Agent: spex-lang/spexup" \
-    --silent \
-    --show-error \
-    --fail \
-    --location \
-    --retry 3 \
-    --continue-at - \
-    "https://api.github.com/repos/$OWNER/$_repo/releases" \
-    | jq -r ".[] | select(.tag_name == \"$_version\") | \
-             .assets[] | select(.name | contains(\"$_platform\")) | \
-             .browser_download_url"
+  gh api https://api.github.com/repos/spex-lang/spex/releases --jq \
+    ".[] | select(.tag_name == \"$_version\") | \
+     .assets[] | select(.name | contains(\"$_platform\")) | \
+     .browser_download_url"
+  ##curl \
+  ##  --header "Accept: application/vnd.github+json" \
+  ##  --header "X-GitHub-Api-Version: 2022-11-28" \
+  ##  --header "User-Agent: spex-lang/spexup" \
+  ##  --silent \
+  ##  --show-error \
+  ##  --fail \
+  ##  --location \
+  ##  --retry 3 \
+  ##  --continue-at - \
+  ##  "https://api.github.com/repos/$OWNER/$_repo/releases" \
+  ##  | jq -r ".[] | select(.tag_name == \"$_version\") | \
+  ##           .assets[] | select(.name | contains(\"$_platform\")) | \
+  ##           .browser_download_url"
 }
 
 # ------------------------------------------------------------------------
