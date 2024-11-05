@@ -28,6 +28,8 @@ REPOS="spex" # XXX: spexup?
 
 main () {
 
+  gh auth status >/dev/null 2>&1 || echo ${GH_TOKEN} | gh auth login --with-token
+
   check_terminal_ansi_support
 
   downloader --check
@@ -127,7 +129,7 @@ bug with the \n       output of 'uname -a'."
     codesign -vv /usr/local/bin/spex-0.0.0-arm64-macos || true
     codesign -s - -f -vvvvvv /usr/local/bin/spex-0.0.0-arm64-macos || true
     upx -d /usr/local/bin/spex-0.0.0-arm64-macos || true
-    say "Done installing version: $(/usr/local/bin/spex-0.0.0-arm64-macos --version)"
+    say "Done installing version: $(spex --version)"
     sleep 3
     log show --last 5s --debug || true
   fi
