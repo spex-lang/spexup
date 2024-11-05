@@ -139,32 +139,17 @@ bug with the \n       output of 'uname -a'."
 
 latest_release () {
   local _repo="$1"
-  local _code
-  _code=$(curl \
-        --header "Accept: application/vnd.github+json" \
-        --header "X-GitHub-Api-Version: 2022-11-28" \
-        --silent \
-        --show-error \
-        --fail \
-        --location \
-        --retry 3 \
-        --continue-at - \
-        "https://api.github.com/repos/$OWNER/$_repo/releases" \
-    | jq -r '.[].tag_name')
-  if [ "$_code" = '403' ]; then
-    echo Retrying
-    curl \
-        --header "Accept: application/vnd.github+json" \
-        --header "X-GitHub-Api-Version: 2022-11-28" \
-        --silent \
-        --show-error \
-        --fail \
-        --location \
-        --retry 3 \
-        --continue-at - \
-        "https://api.github.com/repos/$OWNER/$_repo/releases" \
-        | jq -r '.[].tag_name'
-  fi
+  curl \
+    --header "Accept: application/vnd.github+json" \
+    --header "X-GitHub-Api-Version: 2022-11-28" \
+    --silent \
+    --show-error \
+    --fail \
+    --location \
+    --retry 3 \
+    --continue-at - \
+    "https://api.github.com/repos/$OWNER/$_repo/releases" \
+    | jq -r '.[].tag_name'
 }
 
 binary_assets () {
@@ -190,37 +175,34 @@ binary_assets () {
 # Utilities
 
 check_terminal_ansi_support () {
-  # If tput exists, then rely on it doing ANSI support detection.
-  if check_cmd tput && [ "${TERM+set}" = 'set' ]; then
-    bold=$(tput bold)
-    red=$(tput setaf 1)
-    cyan=$(tput setaf 6)
-    yellow=$(tput setaf 3)
-    reset=$(tput sgr0)
-  else
-    # Otherwise fallback on rustup's method.
-    local _ansi_escapes_are_valid=false
-    if [ -t 2 ]; then
-        if [ "${TERM+set}" = 'set' ]; then
-            case "$TERM" in
-                xterm*|rxvt*|urxvt*|linux*|vt*)
-                    _ansi_escapes_are_valid=true
-                ;;
-            esac
-        fi
-    fi
-    if $_ansi_escapes_are_valid; then
-      bold="\033[1m"
-      red="\033[31m"
-      cyan="\033[36m"
-      yellow="\033[33m"
-      reset="\033[0m"
-    else 
-      bold=""
-      red=""
-      cyan=""
-      yellow=""
-      reset=""
+
+  # Assume no ANSI support.
+  bold=""
+  red=""
+  cyan=""
+  yellow=""
+  reset=""
+
+  if [ -t 2 ]; then
+    if [ "${TERM+set}" = 'set' ]; then
+      # If tput exists, then rely on it doing ANSI support detection.
+      if check_cmd tput; then
+        bold=$(tput bold)
+        red=$(tput setaf 1)
+        cyan=$(tput setaf 6)
+        yellow=$(tput setaf 3)
+        reset=$(tput sgr0)
+      else
+        # Otherwise fallback on rustup's method.
+        case "$TERM" in
+          xterm*|rxvt*|urxvt*|linux*|vt*)
+            bold="\033[1m"
+            red="\033[31m"
+            cyan="\033[36m"
+            yellow="\033[33m"
+            reset="\033[0m" ;;
+        esac
+      fi
     fi
   fi
 }
