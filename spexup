@@ -98,7 +98,7 @@ bug with the \n       output of 'uname -a'."
       echo ""
 
       #ensure downloader "$url" "$_file" "$_arch"
-      curl --silent --show-error --fail --location --output "$_file" "$url"
+      curl --retry 3 --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
       ensure chmod u+x "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
@@ -124,8 +124,9 @@ bug with the \n       output of 'uname -a'."
     uname -s || true
     uname -m || true
     codesign -vv /usr/local/bin/spex-0.0.0-arm64-macos || true
-    log show --last 10m --debug --predicate 'eventMessage contains "spex"' || true
     say "Done installing version: $(spex --version)"
+    spex --version
+    log show --last 10m --debug --predicate 'eventMessage contains "spex"' || true
   fi
 
 }
