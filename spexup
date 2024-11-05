@@ -139,6 +139,7 @@ bug with the \n       output of 'uname -a'."
 
 latest_release () {
   local _repo="$1"
+  set -x
   curl \
     --header "Accept: application/vnd.github+json" \
     --header "X-GitHub-Api-Version: 2022-11-28" \
