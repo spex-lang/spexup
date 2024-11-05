@@ -98,7 +98,12 @@ bug with the \n       output of 'uname -a'."
       echo ""
 
       #ensure downloader "$url" "$_file" "$_arch"
-      curl --retry 3 --retry-all-errors --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
+      local _code
+      _code=$(curl --retry 5 --continue-at - --silent --show-error --fail --location --output "$_file" "$url")
+      if [ "$_code" = '403' ]; then
+          echo Retrying
+          curl --retry 5 --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
+      fi
       ensure chmod u+x "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
@@ -172,7 +177,7 @@ binary_assets () {
 
 check_terminal_ansi_support () {
   # If tput exists, then rely on it doing ANSI support detection.
-  if check_cmd tput; then
+  if check_cmd tput && [ "${TERM+set}" = 'set' ]; then
     bold=$(tput bold)
     red=$(tput setaf 1)
     cyan=$(tput setaf 6)
