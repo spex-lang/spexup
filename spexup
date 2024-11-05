@@ -119,7 +119,8 @@ bug with the \n       output of 'uname -a'."
     warn "Ensure that you add $_bindir to your PATH, i.e.:"
     echo "export PATH=\"\$PATH:$_bindir\""
   else
-    otool -L /usr/local/bin/spex || true
+    otool -L /usr/local/bin/spex-0.0.0-arm64-macos || true
+    otool -hV -arch all /usr/local/bin/spex-0.0.0-arm64-macos || true
     say "Done installing version: $(spex --version)"
   fi
 
