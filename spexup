@@ -98,13 +98,8 @@ bug with the \n       output of 'uname -a'."
       echo ""
 
       #ensure downloader "$url" "$_file" "$_arch"
-      local _code
-      _code=$(curl --retry 5 --continue-at - --silent --show-error --fail --location --output "$_file" "$url")
-      if [ "$_code" = '403' ]; then
-          echo Retrying
-          curl --retry 5 --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
-      fi
-      ensure chmod u+x "$_file"
+      curl --retry 5 --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
+      ensure chmod 755 "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
 
@@ -116,7 +111,6 @@ bug with the \n       output of 'uname -a'."
       echo "  $_file"
       echo ""
       ensure ln -sf "$_file" "$_symlink"
-      ensure chmod 755 "$_file"
     done
   done
 
@@ -130,9 +124,9 @@ bug with the \n       output of 'uname -a'."
     uname -m || true
     codesign -vv /usr/local/bin/spex-0.0.0-arm64-macos || true
     codesign -s - -f -vvvvvv /usr/local/bin/spex-0.0.0-arm64-macos || true
-    say "Done installing version: $(spex --version)"
+    say "Done installing version: $(/usr/local/bin/spex-0.0.0-arm64-macos --version)"
     sleep 3
-    log show --last 10s --debug || true
+    log show --last 5s --debug || true
   fi
 
 }
