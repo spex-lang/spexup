@@ -98,7 +98,7 @@ bug with the \n       output of 'uname -a'."
       echo ""
 
       #ensure downloader "$url" "$_file" "$_arch"
-      curl --retry 3 --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
+      curl --retry 3 --retry-all-errors --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
       ensure chmod u+x "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
