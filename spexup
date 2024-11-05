@@ -111,6 +111,7 @@ bug with the \n       output of 'uname -a'."
       echo "  $_file"
       echo ""
       ensure ln -sf "$_file" "$_symlink"
+      ensure chmod 755 "$_file"
     done
   done
 
