@@ -98,7 +98,9 @@ bug with the \n       output of 'uname -a'."
       echo ""
 
       #ensure downloader "$url" "$_file" "$_arch"
-      curl --retry 5 --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
+      curl \
+          --header "User-Agent: spex-lang/spexup" \
+          --retry 5 --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
       ensure chmod 755 "$_file"
 
       _latest_version=$(echo "$_latest_version" | sed 's/^v//')
@@ -137,6 +139,7 @@ latest_release () {
   curl \
     --header "Accept: application/vnd.github+json" \
     --header "X-GitHub-Api-Version: 2022-11-28" \
+    --header "User-Agent: spex-lang/spexup" \
     --silent \
     --show-error \
     --fail \
@@ -154,6 +157,7 @@ binary_assets () {
   curl \
     --header "Accept: application/vnd.github+json" \
     --header "X-GitHub-Api-Version: 2022-11-28" \
+    --header "User-Agent: spex-lang/spexup" \
     --silent \
     --show-error \
     --fail \
