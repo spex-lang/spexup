@@ -21,26 +21,25 @@ has_local() {
 has_local 2>/dev/null || alias local=typeset
 
 set -u # Treat unset variables as an error when substituting.
-set -x
+# set -x # Print every step (for debugging).
 
 export SPEXUP_VERSION=0.0.0
 OWNER=spex-lang
-REPOS="spex" # XXX: spexup?
+REPOS="spex"
 
 main () {
 
-  gh auth status >/dev/null 2>&1 || echo ${GH_TOKEN} | gh auth login --with-token
-
   check_terminal_ansi_support
 
-  downloader --check
-  # XXX: Would be good to get rid of the jq dependency.
-  # Maybe depend on `gh` instead? `gh api repos/{owner}/{repo}/releases`
-  need_cmd jq
+  need_cmd curl
+  need_cmd gh
   need_cmd uname
   need_cmd chmod
   need_cmd mkdir
   need_cmd ln
+
+  gh auth status >/dev/null 2>&1 || \
+      echo "${GH_TOKEN}" | gh auth login --with-token
 
   get_architecture || return 1
   local _arch="$RETVAL"
@@ -56,11 +55,9 @@ bug with the \n       output of 'uname -a'."
     x86_64*linux*)   _platform=x86_64-linux
                      _bindir="${XDG_BIN_HOME:=$HOME/.local/bin}" ;;
     aarch64*darwin*) _platform=arm64-macos
-                     # _bindir="/Users/$USER/Applications" ;;
                      _bindir="/usr/local/bin" ;;
     x86_64*windows*) _platform=x86_64-windows 
                      _bindir="/usr/local/bin"
-                     # _bindir="/c/Program Files"
                      _suffix=".exe" ;;
     *) 
       echo ""
@@ -100,8 +97,7 @@ bug with the \n       output of 'uname -a'."
       echo "    $_file"
       echo ""
 
-      #ensure downloader "$url" "$_file" "$_arch"
-      curl \
+      ensure curl \
           --header "User-Agent: spex-lang/spexup" \
           --retry 5 --continue-at - --silent --show-error --fail --location --output "$_file" "$url"
       ensure chmod 755 "$_file"
@@ -123,36 +119,14 @@ bug with the \n       output of 'uname -a'."
     warn "Ensure that you add $_bindir to your PATH, i.e.:"
     echo "export PATH=\"\$PATH:$_bindir\""
   else
-    otool -L /usr/local/bin/spex-0.0.0-arm64-macos || true
-    otool -hV -arch all /usr/local/bin/spex-0.0.0-arm64-macos || true
-    uname -s || true
-    uname -m || true
-    codesign -vv /usr/local/bin/spex-0.0.0-arm64-macos || true
-    codesign -s - -f -vvvvvv /usr/local/bin/spex-0.0.0-arm64-macos || true
-    upx -d /usr/local/bin/spex-0.0.0-arm64-macos || true
     say "Done installing version: $(spex --version)"
-    sleep 3
-    log show --last 5s --debug || true
   fi
-
 }
 
 latest_release () {
   local _repo="$1"
-  gh release list --repo "${OWNER}/$_repo" --exclude-drafts --limit 1 --json tagName --jq '.[].tagName'
-
-##  curl \
-##    --header "Accept: application/vnd.github+json" \
-##    --header "X-GitHub-Api-Version: 2022-11-28" \
-##    --header "User-Agent: spex-lang/spexup" \
-##    --silent \
-##    --show-error \
-##    --fail \
-##    --location \
-##    --retry 3 \
-##    --continue-at - \
-##    "https://api.github.com/repos/$OWNER/$_repo/releases" \
-##    | jq -r '.[].tag_name'
+  gh release list --repo "${OWNER}/$_repo" \
+      --exclude-drafts --limit 1 --json tagName --jq '.[].tagName'
 }
 
 binary_assets () {
@@ -163,20 +137,6 @@ binary_assets () {
     ".[] | select(.tag_name == \"$_version\") | \
      .assets[] | select(.name | contains(\"$_platform\")) | \
      .browser_download_url"
-  ##curl \
-  ##  --header "Accept: application/vnd.github+json" \
-  ##  --header "X-GitHub-Api-Version: 2022-11-28" \
-  ##  --header "User-Agent: spex-lang/spexup" \
-  ##  --silent \
-  ##  --show-error \
-  ##  --fail \
-  ##  --location \
-  ##  --retry 3 \
-  ##  --continue-at - \
-  ##  "https://api.github.com/repos/$OWNER/$_repo/releases" \
-  ##  | jq -r ".[] | select(.tag_name == \"$_version\") | \
-  ##           .assets[] | select(.name | contains(\"$_platform\")) | \
-  ##           .browser_download_url"
 }
 
 # ------------------------------------------------------------------------
@@ -635,254 +595,6 @@ ensure_loongarch_uapi() {
             warn 'Installation will fail if your running kernel happens to be incompatible.'
             ;;
     esac
-}
-
-is_zsh() {
-    [ -n "${ZSH_VERSION-}" ]
-}
-
-# This wraps curl or wget. Try curl first, if not installed,
-# use wget instead.
-downloader() {
-    # zsh does not split words by default, Required for curl retry arguments below.
-    is_zsh && setopt local_options shwordsplit
-
-    local _dld
-    local _ciphersuites
-    local _err
-    local _status
-    local _retry
-    if check_cmd curl; then
-        _dld=curl
-    elif check_cmd wget; then
-        _dld=wget
-    else
-        _dld='curl or wget' # to be used in error message of need_cmd
-    fi
-
-    if [ "$1" = --check ]; then
-        need_cmd "$_dld"
-    elif [ "$_dld" = curl ]; then
-        check_curl_for_retry_support
-        _retry="$RETVAL"
-        get_ciphersuites_for_curl
-        _ciphersuites="$RETVAL"
-        if [ -n "$_ciphersuites" ]; then
-            # shellcheck disable=SC2086
-            _err=$(curl $_retry --proto '=https' --tlsv1.2 --ciphers "$_ciphersuites" --silent --show-error --fail --location "$1" --output "$2" 2>&1)
-            _status=$?
-        else
-            warn "Not enforcing strong cipher suites for TLS, this is potentially less secure"
-            if ! check_help_for "$3" curl --proto --tlsv1.2; then
-                warn "Not enforcing TLS v1.2, this is potentially less secure"
-                # shellcheck disable=SC2086
-                _err=$(curl $_retry --silent --show-error --fail --location "$1" --output "$2" 2>&1)
-                _status=$?
-            else
-                echo curl -v --trace curl.log --silent --show-error --fail --location --output "\"$2\"" \""$1":443\" 
-                _err=$(curl -v --trace curl.log --silent --show-error --fail --location --output \""$2"\" \""$1":443\" 2>&1)
-                #_err=$(curl "$_retry" --proto '=https' --tlsv1.2 --silent --show-error --fail --location \""$1"\" --output \""$2"\" 2>&1)
-                _status=$?
-            fi
-        fi
-        if [ -n "$_err" ]; then
-            warn "$_err"
-            if echo "$_err" | grep -q 404$; then
-                err "The binary for the platform '$3' wasn't found, please open an issue."
-                exit 1
-            fi
-        fi
-        return $_status
-    elif [ "$_dld" = wget ]; then
-        if [ "$(wget -V 2>&1|head -2|tail -1|cut -f1 -d" ")" = "BusyBox" ]; then
-            warn "using the BusyBox version of wget.  Not enforcing strong cipher suites for TLS or TLS v1.2, this is potentially less secure"
-            _err=$(wget "$1" -O "$2" 2>&1)
-            _status=$?
-        else
-            get_ciphersuites_for_wget
-            _ciphersuites="$RETVAL"
-            if [ -n "$_ciphersuites" ]; then
-                _err=$(wget --https-only --secure-protocol=TLSv1_2 --ciphers "$_ciphersuites" "$1" -O "$2" 2>&1)
-                _status=$?
-            else
-                warn "Not enforcing strong cipher suites for TLS, this is potentially less secure"
-                if ! check_help_for "$3" wget --https-only --secure-protocol; then
-                    warn "Not enforcing TLS v1.2, this is potentially less secure"
-                    _err=$(wget "$1" -O "$2" 2>&1)
-                    _status=$?
-                else
-                    _err=$(wget --https-only --secure-protocol=TLSv1_2 "$1" -O "$2" 2>&1)
-                    _status=$?
-                fi
-            fi
-        fi
-        if [ -n "$_err" ]; then
-            warn "$_err"
-            if echo "$_err" | grep -q ' 404 Not Found$'; then
-                err "The binary for the platform '$3' wasn't found, please open an issue."
-                exit 1
-            fi
-        fi
-        return $_status
-    else
-        err "Unknown downloader"   # should not reach here
-        exit 1
-    fi
-}
-
-check_help_for() {
-    local _arch
-    local _cmd
-    local _arg
-    _arch="$1"
-    shift
-    _cmd="$1"
-    shift
-
-    local _category
-    if "$_cmd" --help | grep -q '"--help all"'; then
-      _category="all"
-    else
-      _category=""
-    fi
-
-    case "$_arch" in
-
-        *darwin*)
-        if check_cmd sw_vers; then
-            case $(sw_vers -productVersion) in
-                10.*)
-                    # If we're running on macOS, older than 10.13, then we always
-                    # fail to find these options to force fallback
-                    if [ "$(sw_vers -productVersion | cut -d. -f2)" -lt 13 ]; then
-                        # Older than 10.13
-                        warn "Detected macOS platform older than 10.13"
-                        return 1
-                    fi
-                    ;;
-                11.*)
-                    # We assume Big Sur will be OK for now
-                    ;;
-                *)
-                    # Unknown product version, warn and continue
-                    warn "Detected unknown macOS major version: $(sw_vers -productVersion)"
-                    warn "TLS capabilities detection may fail"
-                    ;;
-            esac
-        fi
-        ;;
-
-    esac
-
-    for _arg in "$@"; do
-        if ! "$_cmd" --help "$_category" | grep -q -- "$_arg"; then
-            return 1
-        fi
-    done
-
-    true # not strictly needed
-}
-
-# Check if curl supports the --retry flag, then pass it to the curl invocation.
-check_curl_for_retry_support() {
-    local _retry_supported=""
-    # "unspecified" is for arch, allows for possibility old OS using macports, homebrew, etc.
-    if check_help_for "notspecified" "curl" "--retry"; then
-        _retry_supported="--retry 3"
-        if check_help_for "notspecified" "curl" "--continue-at"; then
-            # "-C -" tells curl to automatically find where to resume the download when retrying.
-            _retry_supported="--retry 3 -C -"
-        fi
-    fi
-
-    RETVAL="$_retry_supported"
-}
-
-# Return cipher suite string specified by user, otherwise return strong TLS 1.2-1.3 cipher suites
-# if support by local tools is detected. Detection currently supports these curl backends:
-# GnuTLS and OpenSSL (possibly also LibreSSL and BoringSSL). Return value can be empty.
-get_ciphersuites_for_curl() {
-    if [ -n "${RUSTUP_TLS_CIPHERSUITES-}" ]; then
-        # user specified custom cipher suites, assume they know what they're doing
-        RETVAL="$RUSTUP_TLS_CIPHERSUITES"
-        return
-    fi
-
-    local _openssl_syntax="no"
-    local _gnutls_syntax="no"
-    local _backend_supported="yes"
-    if curl -V | grep -q ' OpenSSL/'; then
-        _openssl_syntax="yes"
-    elif curl -V | grep -iq ' LibreSSL/'; then
-        _openssl_syntax="yes"
-    elif curl -V | grep -iq ' BoringSSL/'; then
-        _openssl_syntax="yes"
-    elif curl -V | grep -iq ' GnuTLS/'; then
-        _gnutls_syntax="yes"
-    else
-        _backend_supported="no"
-    fi
-
-    local _args_supported="no"
-    if [ "$_backend_supported" = "yes" ]; then
-        # "unspecified" is for arch, allows for possibility old OS using macports, homebrew, etc.
-        if check_help_for "notspecified" "curl" "--tlsv1.2" "--ciphers" "--proto"; then
-            _args_supported="yes"
-        fi
-    fi
-
-    local _cs=""
-    if [ "$_args_supported" = "yes" ]; then
-        if [ "$_openssl_syntax" = "yes" ]; then
-            _cs=$(get_strong_ciphersuites_for "openssl")
-        elif [ "$_gnutls_syntax" = "yes" ]; then
-            _cs=$(get_strong_ciphersuites_for "gnutls")
-        fi
-    fi
-
-    RETVAL="$_cs"
-}
-
-# Return cipher suite string specified by user, otherwise return strong TLS 1.2-1.3 cipher suites
-# if support by local tools is detected. Detection currently supports these wget backends:
-# GnuTLS and OpenSSL (possibly also LibreSSL and BoringSSL). Return value can be empty.
-get_ciphersuites_for_wget() {
-    if [ -n "${RUSTUP_TLS_CIPHERSUITES-}" ]; then
-        # user specified custom cipher suites, assume they know what they're doing
-        RETVAL="$RUSTUP_TLS_CIPHERSUITES"
-        return
-    fi
-
-    local _cs=""
-    if wget -V | grep -q '\-DHAVE_LIBSSL'; then
-        # "unspecified" is for arch, allows for possibility old OS using macports, homebrew, etc.
-        if check_help_for "notspecified" "wget" "TLSv1_2" "--ciphers" "--https-only" "--secure-protocol"; then
-            _cs=$(get_strong_ciphersuites_for "openssl")
-        fi
-    elif wget -V | grep -q '\-DHAVE_LIBGNUTLS'; then
-        # "unspecified" is for arch, allows for possibility old OS using macports, homebrew, etc.
-        if check_help_for "notspecified" "wget" "TLSv1_2" "--ciphers" "--https-only" "--secure-protocol"; then
-            _cs=$(get_strong_ciphersuites_for "gnutls")
-        fi
-    fi
-
-    RETVAL="$_cs"
-}
-
-# Return strong TLS 1.2-1.3 cipher suites in OpenSSL or GnuTLS syntax. TLS 1.2
-# excludes non-ECDHE and non-AEAD cipher suites. DHE is excluded due to bad
-# DH params often found on servers (see RFC 7919). Sequence matches or is
-# similar to Firefox 68 ESR with weak cipher suites disabled via about:config.
-# $1 must be openssl or gnutls.
-get_strong_ciphersuites_for() {
-    if [ "$1" = "openssl" ]; then
-        # OpenSSL is forgiving of unknown values, no problems with TLS 1.3 values on versions that don't support it yet.
-        echo "TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
-    elif [ "$1" = "gnutls" ]; then
-        # GnuTLS isn't forgiving of unknown values, so this may require a GnuTLS version that supports TLS 1.3 even if wget doesn't.
-        # Begin with SECURE128 (and higher) then remove/add to build cipher suites. Produces same 9 cipher suites as OpenSSL but in slightly different order.
-        echo "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-VERS-TLS1.1:-VERS-DTLS-ALL:-CIPHER-ALL:-MAC-ALL:-KX-ALL:+AEAD:+ECDHE-ECDSA:+ECDHE-RSA:+AES-128-GCM:+CHACHA20-POLY1305:+AES-256-GCM"
-    fi
 }
 
 main "$@" || exit 1
