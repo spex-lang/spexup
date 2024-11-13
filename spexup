@@ -26,10 +26,25 @@ set -u # Treat unset variables as an error when substituting.
 export SPEXUP_VERSION=0.0.0
 OWNER=spex-lang
 REPOS="spex"
+SPEX_NONINTERACTIVE="${SPEX_NONINTERACTIVE:=false}"
 
 main () {
 
   check_terminal_ansi_support
+
+  if [ "${SPEX_NONINTERACTIVE}" = false ] && [ -t 0 ]; then
+    echo ""
+    say "About to install the Spex programming language and verifier."
+    echo ""
+    echo "  Would you like to proceed? [y/N]?"
+    echo ""
+    printf "  "
+    read -r yn
+    if [ "$yn" != "y" ] && [ "$yn" != "Y" ]; then
+        echo "  Aborting..."
+        exit 1
+    fi
+  fi
 
   need_cmd curl
   need_cmd awk
@@ -41,7 +56,7 @@ main () {
   if check_cmd "gh"; then
     USE_GH=true
   elif check_cmd "jq"; then
-    USE_GH=false
+    _USE_JQ=true
   else
     err "need 'jq' or 'gh' (command not found)"
     exit 1
@@ -91,6 +106,7 @@ bug with the \n       output of 'uname -a'."
     assert_nz "$_latest_version" "No release of $repo is available yet."
     local _download_urls
     _download_urls=$(binary_assets "$repo" "$_latest_version" "$_platform")
+    assert_nz "$_download_urls" "No downloaded urls for $_latest_version."
     for url in $_download_urls; do
 
       # Remove trailing whitespace.
