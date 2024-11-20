@@ -62,7 +62,7 @@ main () {
     exit 1
   fi
 
-  if [ "$USE_GH" ]; then
+  if [ "$USE_GH" = true ]; then
     gh auth status >/dev/null 2>&1 || \
         echo "${GH_TOKEN}" | gh auth login --with-token
   fi
@@ -152,7 +152,7 @@ bug with the \n       output of 'uname -a'."
 
 latest_release () {
   local _repo="$1"
-  if [ "$USE_GH" ]; then
+  if [ "$USE_GH" = true ]; then
     gh release list --repo "${OWNER}/$_repo" \
         --exclude-drafts --limit 1 --json tagName --jq '.[].tagName'
   else
@@ -166,7 +166,7 @@ binary_assets () {
   local _version="$2"
   local _platform="$3"
 
-  if [ "$USE_GH" ]; then
+  if [ "$USE_GH" = true ]; then
     gh api https://api.github.com/repos/spex-lang/spex/releases --jq \
       ".[] | select(.tag_name == \"$_version\") | \
        .assets[] | select(.name | contains(\"$_platform\")) | \
