@@ -56,7 +56,7 @@ main () {
   if check_cmd "gh"; then
     USE_GH=true
   elif check_cmd "jq"; then
-    _USE_JQ=true
+    USE_GH=false
   else
     err "need 'jq' or 'gh' (command not found)"
     exit 1
@@ -81,7 +81,7 @@ bug with the \n       output of 'uname -a'."
     x86_64*linux*)   _platform=x86_64-linux
                      _bindir="${XDG_BIN_HOME:=$HOME/.local/bin}" ;;
     aarch64*darwin*) _platform=arm64-macos
-                     _bindir="/usr/local/bin" ;;
+                     _bindir="${XDG_BIN_HOME:=$HOME/.local/bin}" ;;
     x86_64*windows*) _platform=x86_64-windows 
                      _bindir="/usr/local/bin"
                      _suffix=".exe" ;;
